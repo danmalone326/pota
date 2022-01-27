@@ -1,0 +1,369 @@
+<html>
+<head>
+<title>POTA Table</title>
+
+<script defer="" src="https://use.fontawesome.com/releases/v5.1.0/js/all.js"></script>
+<script>
+
+// var jsonURL = "data/activator.json"
+var apiPrefix = "https://api.pota.app/stats/user/";
+// var apiPrefix = "https://malone.org/pota/testData/";
+// var jsonURL = "https://api.pota.us/spot/activator"
+var currentData = [];
+
+
+// Routines for loading the JSON stats file
+var getJSON = function(url, callsign, callback) {
+					var xhr = new XMLHttpRequest();
+					xhr.open('GET', url, true);
+					xhr.responseType = 'json';
+					xhr.onload = function() {
+						var status = xhr.status;
+						if (status === 200) {
+							callback(null, xhr.response, callsign);
+						} else {
+							callback(status, xhr.response, callsign);
+						}
+					};
+					xhr.send();
+				};
+
+function loadJSON (url,callsign) {
+	getJSON(url,
+			callsign,
+			function(err, data, callsign) {
+				if (err !== null) {
+					console.log('Something went wrong: ' + err);
+				} else {
+					if (typeof data === 'object') {
+						currentData.push(data);
+					} else {
+						currentData.push({callsign: callsign});
+					}
+					// console.log(currentData);
+					redraw();
+				}
+			});
+}
+
+function getValue(user,key) {
+	try {
+		switch (key) {
+			case "hunterParks":
+				result = user.hunter.parks;
+				break;
+			case "hunterQsos":
+				result = user.hunter.qsos;
+				break;
+			case "activations":
+				result = user.activator.activations;
+				break;
+			case "activatorParks":
+				result = user.activator.parks;
+				break;
+			case "activatorQsos":
+				result = user.activator.qsos;
+				break;
+			default: 
+				result = 0;
+				break;
+		} 
+		if (result === undefined) {
+			result = 0;
+		}
+	} catch (e) {
+		if (e instanceof TypeError) {
+			result = 0;
+		}
+	}
+
+	return result;
+}
+
+function sortData(key) {
+	currentData.sort(function(a,b) {
+		return getValue(b,key)-getValue(a,key);
+	});
+}
+
+var tabsName = "tabs";
+function getSelectedTabKey() {
+	var tabs = document.getElementsByName(tabsName);
+
+	for (var i = 0, length = tabs.length; i < length; i++) {
+		if (tabs[i].checked) {
+			// do whatever you want with the checked radio
+			result = tabs[i].value;
+			break;
+		}
+	}
+	return result;
+}
+
+function redrawChart(key) {
+	maxValue = 0;
+	sortData(key);
+	maxValue = getValue(currentData[0],key);
+	if (maxValue == 0) {
+		maxValue = 1;
+	}
+
+	outputHtml = "";
+	currentData.forEach(user => {
+		if (typeof user === 'object') {
+			thisValue = getValue(user,key);
+			thisPercent = (100 * thisValue / maxValue).toFixed(2);
+			outputHtml += "<li style='width:" + thisPercent + "%;'>&nbsp;" + user.callsign.toUpperCase() + "&nbsp;" + thisValue + "</li>";
+		}
+	});
+
+	id = key+"Chart";
+	document.getElementById(id).innerHTML = outputHtml;
+}
+
+function redraw(key) {
+	keys = 	["hunterParks", "hunterQsos", "activations", "activatorParks", "activatorQsos"];
+	keys.forEach(key => {
+		redrawChart(key);
+	});
+}
+
+callsignListInput = "callsignInput";
+function populateCallsignInput(callsignList) {
+	document.getElementById(callsignListInput).value = callsignList.join("\r\n");
+}
+
+function callsignInputParse() {
+	var input = document.getElementById(callsignListInput).value;
+	var inputList = input.split(/\W+/);
+	var parsedCallsigns = [];
+	
+	inputList.forEach(function (inputItem, inputIndex) {
+							if (inputItem) {
+								var matchValue = inputItem.toUpperCase();
+
+								// Does this look like a callsign - not perfect
+								if (matchValue.match(/^([A-Z]{1,2}\d[A-Z]{1,3})$/)) {
+									parsedCallsigns.push(matchValue);
+								}
+							}
+						})
+	
+	// dedup
+	parsedCallsigns = parsedCallsigns.filter(function (value, index, self) { return self.indexOf(value) === index; });
+	
+	populateCallsignInput(parsedCallsigns);
+	loadTeam(parsedCallsigns);
+	history.replaceState(null,null,"?callsigns=" + encodeURIComponent(parsedCallsigns.join(',')));
+	// console.log("?callsigns=" + encodeURIComponent(parsedCallsigns.join(',')));
+}
+
+// callsignList = ["ko4afl","ak6dm","kd9who","ad4ve"];
+function loadTeam(callsignList) {
+	currentData = [];
+	callsignList.forEach(callsign => {
+		var jsonURL = apiPrefix + callsign;
+		loadJSON(jsonURL,callsign);
+	});
+}
+
+function initialize() {
+	const urlSearchParams = new URLSearchParams(window.location.search);
+	const params = Object.fromEntries(urlSearchParams.entries());
+
+	if (params.callsigns && params.callsigns.length > 0) {
+		document.getElementById(callsignListInput).value = params.callsigns;
+		callsignInputParse();
+	} else {
+		document.getElementById("tab6").checked = true;
+	}
+}
+
+</script>
+
+<style>
+	.header {
+		background-color: #43a047;
+		position: absolute;
+		top: 0px;
+		left: 0px;
+		right: 0px;
+		height: 64px;
+		overflow:hidden;
+	}
+	
+	.content {
+		position: absolute;
+		top: 64px;
+		bottom: 36px;
+		left: 0px; 
+		right: 0px;
+		overflow: auto;
+	}
+
+	.footer {
+		background-color: #43a047;
+		position: absolute; 
+		bottom: 0px; 
+		height: 36px; 
+		left: 0px; 
+		right: 0px; 
+			overflow:hidden;
+	}
+
+	.chartWrapper {
+		width: 95%;
+		margin: 0 auto;
+	}
+
+	ul.chart {
+		border-style: solid;
+		border-width: 1px;
+		list-style-type: none;
+		width: 300px;
+		margin: 5px;
+		padding: 0 0 10px;
+		overflow:auto;
+		background:
+			repeating-linear-gradient(to right,
+			transparent 0 calc(100% - 1px),grey calc(100% - 1px) 100%) 
+			0 /calc(100%/var(--n,10)) 100%;
+		border-left:1px solid grey;
+		margin: 0 auto;
+	}
+
+	ul.chart li {
+		background: #43a047;
+		color: rgb(255, 255, 255);
+		text-shadow: 1px 1px #000000;
+		font-size: x-large;
+		margin-top: 10px;
+		padding: 10px 0px;
+	}
+
+	input {                 /* hide radio buttons */
+		display: none; 
+	}
+
+	input + label {         /* show labels in line */
+		display: inline-block;
+	}
+
+	input + label {             /* box with rounded corner */
+		border: 1px solid #999;
+		background: #60bb60;
+		padding: 4px 12px;
+		border-radius: 4px 4px 0 0;
+		position: relative;
+		top: 1px;
+	}
+	
+	input:checked + label {     /* white background for selected tab */
+		background: #b4ffaf;
+		border-bottom: 1px solid transparent;
+	}
+
+	/* grey line between tab and contents */
+	input ~ .tab {          
+		border: 1px solid #999;
+		padding: 12px;
+	}
+
+	.tab {
+		display: none;
+	}          /* hide contents by default */
+
+	/* show contents only for selected tab */
+	#tab1:checked ~ .tab.content1,
+	#tab2:checked ~ .tab.content2,
+	#tab3:checked ~ .tab.content3,
+	#tab4:checked ~ .tab.content4,
+	#tab5:checked ~ .tab.content5,
+	#tab6:checked ~ .tab.content6 { display: block; }
+
+</style>
+
+</head>
+
+<body onload="initialize();">
+
+<div class='header'>
+
+</div>
+
+<div class='content'>
+<div class='tableTitle'>
+&nbsp;
+</div>
+
+<div class="chartWrapper">
+	<input type="radio" name="tabs" id="tab1" value="hunterParks" checked />
+	<label for="tab1">Hunter Parks</label>
+	<input type="radio" name="tabs" id="tab2" value="hunterQsos" />
+	<label for="tab2">Hunter QSOs</label>
+	<input type="radio" name="tabs" id="tab3" value="activations" />
+	<label for="tab3">Activations</label>
+	<input type="radio" name="tabs" id="tab4" value="activatorParks" />
+	<label for="tab4">Activator Parks</label>
+	<input type="radio" name="tabs" id="tab5" value="activatorQsos" />
+	<label for="tab5">Activator QSOs</label>
+	<input type="radio" name="tabs" id="tab6" value="callsigns"/>
+	<label for="tab6">Callsigns</label>
+
+	<div class="tab content1">
+		<ul class="chart" id="hunterParksChart" style="--n:20;width:100%">
+			<li style="width:100%;">Lorem</li>
+			<li style="width:99.5%;">Dolor</li>
+			<li style="width:50%;">Dolor</li>
+		</ul>
+	</div>
+
+	<div class="tab content2">
+		<ul class="chart" id="hunterQsosChart" style="--n:20;width:100%">
+			<li style="width:100%;">Lorem</li>
+			<li style="width:99.5%;">Dolor</li>
+			<li style="width:50%;">Dolor</li>
+		</ul>
+	</div>
+
+	<div class="tab content3">
+		<ul class="chart" id="activationsChart" style="--n:20;width:100%">
+			<li style="width:100%;">Lorem</li>
+			<li style="width:99.5%;">Dolor</li>
+			<li style="width:50%;">Dolor</li>
+		</ul>
+	</div>
+
+	<div class="tab content4">
+		<ul class="chart" id="activatorParksChart" style="--n:20;width:100%">
+			<li style="width:100%;">Lorem</li>
+			<li style="width:99.5%;">Dolor</li>
+			<li style="width:50%;">Dolor</li>
+		</ul>
+	</div>
+
+	<div class="tab content5">
+		<ul class="chart" id="activatorQsosChart" style="--n:20;width:100%">
+			<li style="width:100%;">Lorem</li>
+			<li style="width:99.5%;">Dolor</li>
+			<li style="width:50%;">Dolor</li>
+		</ul>
+	</div>
+
+	<div class="tab content6">
+		<textarea id="callsignInput" rows="10" cols="30" placeholder="Paste/type a list Callsigns here..."></textarea>
+		<br>
+		<button onclick="callsignInputParse();">Find Callsigns</button>
+	</div>
+
+</div>
+
+</div>
+
+<div class='footer'>
+
+</div>
+
+</body>
+
+</html>

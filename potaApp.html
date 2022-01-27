@@ -1,0 +1,214 @@
+<html>
+<head>
+<title>POTA Table</title>
+
+<script defer="" src="https://use.fontawesome.com/releases/v5.1.0/js/all.js"></script>
+<script>
+
+// var jsonURL = "data/activator.json"
+var jsonURL = "https://api.pota.us/spot/activator"
+var currentData = [];
+
+
+// Routines for loading the JSON stats file
+var getJSON = function(url, callback) {
+					var xhr = new XMLHttpRequest();
+					xhr.open('GET', url, true);
+					xhr.responseType = 'json';
+					xhr.onload = function() {
+						var status = xhr.status;
+						if (status === 200) {
+							callback(null, xhr.response);
+						} else {
+							callback(status, xhr.response);
+						}
+					};
+					xhr.send();
+				};
+
+function loadJSON (url) {
+	getJSON(jsonURL,
+			function(err, data) {
+				if (err !== null) {
+					alert('Something went wrong: ' + err);
+				} else {
+					currentData = data;
+					sortData();
+					redrawData();
+				}
+			});
+}
+
+function sortData() {
+	currentData.sort(function(a,b) {
+		return new Date(b.spotTime)-new Date(a.spotTime);
+	});
+}
+
+tableID = "myTable";
+// Called when new JSON data is here
+function redrawData() {
+
+	tableHtml="";
+	currentData.forEach(function (value, index) {
+		spotTime = new Date(value.spotTime+"Z");
+		now = Date.now();
+		diff = now - spotTime;
+		spotTimeStr = "Last spot ";
+		if (diff > 60e3) spotTimeStr += Math.floor(diff / 60e3) + ' minute';
+		else spotTimeStr += Math.floor(diff / 1e3) + ' second';
+		spotTimeStr += "(s) ago at "+spotTime.getHours()+":"+(spotTime.getMinutes() < 10 ? "0" : "")+spotTime.getMinutes();
+		spotTimeStr += " ("+value.spotTime.substring(11,16)+" UTC)";
+	
+		tableHtml += "<tr class='row "+(index%2==0 ? 'oddRow' : 'evenRow')+"'>";
+		tableHtml += "<td class='textLeft'>"+value.activator+"</td>";
+		tableHtml += "<td class='textLeft textNoWrap'>"+value.reference+"</td>";
+		tableHtml += "<td class='textLeft textNoWrap'>"+value.name+"</td>";
+		tableHtml += "<td class='textLeft'>"+value.locationDesc+"</td>";
+		tableHtml += "<td class='textRight'>"+value.frequency+" kHz</td>";
+		tableHtml += "<td class='textLeft'>"+value.spotter+"</td>";
+		tableHtml += "<td class='textLeft'>"+value.comments+"</td>";
+		tableHtml += "<td class='textLeft'>"+spotTimeStr+"</td>";
+		tableHtml += "</tr>\n";
+	});
+
+	document.getElementById(tableID).tBodies[0].innerHTML = tableHtml;
+
+}
+
+function refreshData() {
+	if (document.getElementById("refreshEnabled").checked) {
+		loadJSON(jsonURL);
+	} else {
+		redrawData();
+	}
+}
+
+function setRefreshTimer() {
+	setInterval(refreshData, 60 * 1000);
+	refreshData(); // First run because interval runs after 1 minute
+}
+
+</script>
+
+<style>
+	.header {
+		background-color: #43a047;
+		position: absolute;
+		top: 0px;
+		left: 0px;
+		right: 0px;
+		height: 64px;
+		overflow:hidden;
+	}
+	
+	.content {
+		position: absolute;
+		top: 64px;
+		bottom: 36px;
+		left: 0px; 
+		right: 0px;
+		overflow: auto;
+	}
+
+	.footer {
+		background-color: #43a047;
+		position: absolute; 
+		bottom: 0px; 
+		height: 36px; 
+		left: 0px; 
+		right: 0px; 
+			overflow:hidden;
+	}
+	
+	.myTable {
+		width: 100%;
+		border: 2px solid #43a047;
+		border-collapse: collapse;
+	}
+	
+	.row {
+		border-bottom: 1px solid #43a047;
+	}
+
+	.row td,th {
+		padding: 5px;
+	}
+
+	
+	.oddRow {
+
+	}
+
+	.evenRow,.headerRow {
+		background-color: rgba(67, 160, 71, 0.24);
+	}
+	
+	.textCenter {
+		text-align: center;
+	}
+	
+	.textRight {
+		text-align: right;
+	}
+	
+	.textLeft {
+		text-align: left;
+	}
+	
+	.textNoWrap {
+		white-space: nowrap;
+	}
+
+	.tableTitle {
+		color: #43a047;
+	    font-size: 1.25rem!important;
+    	font-weight: 500;
+	    letter-spacing: .0125em!important;
+	    padding: 5px;
+	}
+
+</style>
+
+</head>
+
+<body onload="setRefreshTimer();">
+
+<div class='header'>
+
+</div>
+
+<div class='content'>
+<div class='tableTitle'>
+Active Spots
+</div>
+<input id="refreshEnabled" type="checkbox" checked/> Refresh every minute
+<table class='myTable' id="myTable">
+<thead>
+	<tr class='row headerRow'>
+ 		<th class='textLeft'>Activator</th>
+ 		<th class='textLeft'>Park</th>
+ 		<th class='textLeft'><span title="Name"><i class="fas fa-map-marker-alt"></i></span></th>
+ 		<th class='textLeft'><span title="Location"><i class="fas fa-building "></i></span></th>
+ 		<th class='textCenter'><span title="Frequency"><i class="fas fa-broadcast-tower "></i></span></th>
+ 		<th class='textLeft'><span title="Spotter"><i class="fas fa-id-card-alt "></i></span></th>
+ 		<th class='textLeft'><span title="Comment"><i class="fas fa-comment-alt "></i></span></th>
+ 		<th class='textLeft'><span title="Time"><i class="far fa-clock"></i></span></th>
+	</tr>
+</thead>
+
+<tbody>
+	
+</tbody>
+
+</table>
+
+</div>
+
+<div class='footer'>
+
+</div>
+
+</body>
+
+</html>
