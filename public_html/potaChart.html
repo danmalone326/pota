@@ -1,6 +1,5 @@
 <html>
 <head>
-<title>POTA Table</title>
 
 <script defer="" src="https://use.fontawesome.com/releases/v5.1.0/js/all.js"></script>
 <script>
@@ -216,6 +215,19 @@ function initialize() {
 		overflow: hidden;
 	}
 
+	.footerContent {
+		color: #ffffff;
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		-webkit-transform: translate(-50%, -50%);
+		transform: translate(-50%, -50%);
+		justify-content: center!important;
+		-webkit-box-pack: center!important;
+		-webkit-box-align: center!important;
+		align-items: center!important;
+	}
+
 	.chartWrapper {
 		width: 95%;
 		margin: 0 auto;
@@ -302,6 +314,11 @@ function initialize() {
 	}
 </style>
 
+<link rel="icon" href="https://pota.app/favicon-16x16.png" sizes="16x16">
+<link rel="icon" href="https://pota.app/favicon-32x32.png" sizes="32x32">
+
+<title>POTA Chart</title>
+
 </head>
 
 <body onload="initialize();">
@@ -380,7 +397,9 @@ function initialize() {
 </div>
 
 <div class='footer'>
-
+	<div class="footerContent">
+		<span>Data sourced from <a href='https://pota.app/'>Parks on the Air</a> API</span>
+	</div>
 </div>
 <div id="byLine" class="byLine">
 	by AK6DM
