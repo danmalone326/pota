@@ -312,6 +312,26 @@ function initialize() {
 		font-family: initial;
 		letter-spacing: initial;
 	}
+
+	.byLine:hover #byLinePopup {
+		display: block;
+	}
+
+	.byLinePopup {
+		position: fixed; 
+		width: 200px;
+		display: none;
+		bottom: 30; 
+		right: 10; 
+		padding: 5; 
+		border-radius: 5px;
+		background: #cacaca73;
+		background-color: #cacaca73; 
+		font-size: x-small;
+		text-align: left;
+		z-index: 999;
+	}
+
 </style>
 
 <link rel="icon" href="https://pota.app/favicon-16x16.png" sizes="16x16">
@@ -401,8 +421,13 @@ function initialize() {
 		<span>Data sourced from <a href='https://pota.app/'>Parks on the Air</a> API</span>
 	</div>
 </div>
+
 <div id="byLine" class="byLine">
 	by AK6DM
+	<div id="byLinePopup" class="byLinePopup">
+		"Life is not a competition. Life is about helping and inspiring others so we can each reach our potential."
+		<br>-- Kim Chase
+	</div>
 </div>
 
 </body>
