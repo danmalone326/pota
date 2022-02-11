@@ -8,6 +8,9 @@
 var apiPrefix = "https://api.pota.app/stats/user/";
 // var apiPrefix = "https://malone.org/pota/testData/";
 // var jsonURL = "https://api.pota.us/spot/activator"
+
+var currentCallsigns = [];
+var currentTab = "";
 var currentData = [];
 
 
@@ -32,7 +35,8 @@ function loadJSON (url,callsign) {
 			callsign,
 			function(err, data, callsign) {
 				if (err !== null) {
-					console.log('Something went wrong: ' + err);
+					// pota api 404 means not in database, should handle this differently to return 0s in this case
+					// console.log('Something went wrong: ' + err);
 				} else {
 					if (typeof data === 'object') {
 						currentData.push(data);
@@ -85,20 +89,6 @@ function sortData(key) {
 	});
 }
 
-var tabsName = "tabs";
-function getSelectedTabKey() {
-	var tabs = document.getElementsByName(tabsName);
-
-	for (var i = 0, length = tabs.length; i < length; i++) {
-		if (tabs[i].checked) {
-			// do whatever you want with the checked radio
-			result = tabs[i].value;
-			break;
-		}
-	}
-	return result;
-}
-
 function redrawChart(key) {
 	maxValue = 0;
 	sortData(key);
@@ -132,32 +122,15 @@ function populateCallsignInput(callsignList) {
 	document.getElementById(callsignListInput).value = callsignList.join("\r\n");
 }
 
-function callsignInputParse() {
+function callsignInputRead() {
 	var input = document.getElementById(callsignListInput).value;
-	var inputList = input.split(/\W+/);
-	var parsedCallsigns = [];
+	currentCallsigns = callsignListParse(input);
 	
-	inputList.forEach(function (inputItem, inputIndex) {
-							if (inputItem) {
-								var matchValue = inputItem.toUpperCase();
-
-								// Does this look like a callsign - not perfect
-								if (matchValue.match(/^([A-Z]{1,2}\d[A-Z]{1,3})$/)) {
-									parsedCallsigns.push(matchValue);
-								}
-							}
-						})
-	
-	// dedup
-	parsedCallsigns = parsedCallsigns.filter(function (value, index, self) { return self.indexOf(value) === index; });
-	
-	populateCallsignInput(parsedCallsigns);
-	loadTeam(parsedCallsigns);
-	history.replaceState(null,null,"?callsigns=" + encodeURIComponent(parsedCallsigns.join(',')));
-	// console.log("?callsigns=" + encodeURIComponent(parsedCallsigns.join(',')));
+	populateCallsignInput(currentCallsigns);
+	loadTeam(currentCallsigns);
+	updateURL();
 }
 
-// callsignList = ["ko4afl","ak6dm","kd9who","ad4ve"];
 function loadTeam(callsignList) {
 	currentData = [];
 	callsignList.forEach(callsign => {
@@ -166,16 +139,83 @@ function loadTeam(callsignList) {
 	});
 }
 
-function initialize() {
+// given a string, parse the callsigns into an array
+function callsignListParse(callsignListString) {
+	var words = callsignListString.split(/\W+/);
+	var parsedCallsigns = [];
+	
+	words.forEach(function (word, index) {
+							if (word) {
+								var matchValue = word.toUpperCase();
+
+								// Does this look like a callsign
+								if (matchValue.match(/^\d?[A-Z]{1,2}\d{1,4}[A-Z]{1,3}$/)) {
+									parsedCallsigns.push(matchValue);
+								}
+							}
+						});
+	
+	// dedup
+	parsedCallsigns = parsedCallsigns.filter(function (value, index, self) { return self.indexOf(value) === index; });
+
+	return parsedCallsigns;
+}
+
+function tabClicked(tab) {
+	currentTab = tab.value;
+	updateURL();
+	return true;
+}
+
+function getTabIDfromValue(tabValue) {
+	result = null;
+	tabs = document.getElementsByName("tabs");
+	tabs.forEach(tab => {
+		if (tab.value.toUpperCase() == tabValue.toUpperCase()) {
+			result = tab.id;
+		}
+	});
+	return result;
+}
+
+callsignParameterName = "callsigns";
+tabParameterName = "tab";
+
+function updateURL(){
+	callsignParameter = callsignParameterName + "=" + encodeURIComponent(currentCallsigns.join(','));
+	tabParameter = tabParameterName + "=" + encodeURIComponent(currentTab);
+	history.replaceState(null,null,"?" + callsignParameter + "&" + tabParameter);
+}
+
+function parseURL() {
 	const urlSearchParams = new URLSearchParams(window.location.search);
 	const params = Object.fromEntries(urlSearchParams.entries());
 
-	if (params.callsigns && params.callsigns.length > 0) {
-		document.getElementById(callsignListInput).value = params.callsigns;
-		callsignInputParse();
+	if (params[tabParameterName]) {
+		tabValue = params[tabParameterName];
 	} else {
-		document.getElementById("tab6").checked = true;
+		tabValue = "hunterParks";
 	}
+	currentTab = tabValue;
+
+	tabID = getTabIDfromValue(tabValue);
+	if (tabID) {
+		document.getElementById(tabID).checked = true;
+	}
+
+	if (params[callsignParameterName] && params[callsignParameterName].length > 0) {
+		callsigns = callsignListParse(params[callsignParameterName]);
+		populateCallsignInput(callsigns);
+		loadTeam(callsigns);
+		currentCallsigns = callsigns;
+	} else {
+		document.getElementById(getTabIDfromValue("callsigns")).checked = true;
+	}
+
+}
+
+function initialize() {
+	parseURL();
 }
 
 </script>
@@ -355,17 +395,17 @@ function initialize() {
 </div>
 
 <div class="chartWrapper">
-	<input type="radio" name="tabs" id="tab1" value="hunterParks" checked />
+	<input type="radio" name="tabs" id="tab1" value="hunterParks" checked onclick="tabClicked(this);" />
 	<label for="tab1">Hunter Parks</label>
-	<input type="radio" name="tabs" id="tab2" value="hunterQsos" />
+	<input type="radio" name="tabs" id="tab2" value="hunterQsos" onclick="tabClicked(this);" />
 	<label for="tab2">Hunter QSOs</label>
-	<input type="radio" name="tabs" id="tab3" value="activations" />
+	<input type="radio" name="tabs" id="tab3" value="activations" onclick="tabClicked(this);" />
 	<label for="tab3">Activations</label>
-	<input type="radio" name="tabs" id="tab4" value="activatorParks" />
+	<input type="radio" name="tabs" id="tab4" value="activatorParks" onclick="tabClicked(this);" />
 	<label for="tab4">Activator Parks</label>
-	<input type="radio" name="tabs" id="tab5" value="activatorQsos" />
+	<input type="radio" name="tabs" id="tab5" value="activatorQsos" onclick="tabClicked(this);" />
 	<label for="tab5">Activator QSOs</label>
-	<input type="radio" name="tabs" id="tab6" value="callsigns"/>
+	<input type="radio" name="tabs" id="tab6" value="callsigns" onclick="tabClicked(this);" />
 	<label for="tab6">Callsigns</label>
 
 	<div class="tab content1">
@@ -411,7 +451,7 @@ function initialize() {
 	<div class="tab content6">
 		<textarea id="callsignInput" rows="10" cols="30" placeholder="Paste/type a list Callsigns here..."></textarea>
 		<br>
-		<button onclick="callsignInputParse();">Find Callsigns</button>
+		<button onclick="callsignInputRead();">Update Callsigns</button>
 	</div>
 
 </div>
